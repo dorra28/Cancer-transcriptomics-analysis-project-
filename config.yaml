@@ -1,0 +1,336 @@
+# Cancer Transcriptomics Analysis Pipeline - Configuration File
+# This is a template configuration for analyzing cancer RNA-seq data
+
+project:
+  name: "BRCA_Transcriptomics_Analysis"
+  description: "Comprehensive transcriptomics analysis of breast cancer patients"
+  author: "Dorra Rjaibi"
+  institution: "Pasteur Institution "
+  output_dir: "results/brca_analysis"
+  date: "2025-12-10"
+
+# Data source configuration
+data:
+  # Options: 'TCGA', 'GEO', 'custom'
+  source: "TCGA"
+  
+  # For TCGA data
+  project_id: "TCGA-BRCA"  # Breast cancer
+  # Other TCGA projects:
+  # - TCGA-LUAD: Lung adenocarcinoma
+  # - TCGA-COAD: Colon adenocarcinoma
+  # - TCGA-PRAD: Prostate adenocarcinoma
+  # - TCGA-LIHC: Liver hepatocellular carcinoma
+  # - TCGA-KIRC: Kidney renal clear cell carcinoma
+  
+  data_type: "HTSeq-Counts"  # RNA-seq count data
+  
+  # For GEO data (if source is 'GEO')
+  series_id: "GSE62944"
+  platform: "GPL570"
+  
+  # For custom data (if source is 'custom')
+  counts_file: "data/custom_counts.csv"
+  metadata_file: "data/custom_metadata.csv"
+  
+  # Download settings
+  cache_dir: "data/cache"
+  use_cached: true
+
+# Quality control parameters
+quality_control:
+  # Gene filtering
+  min_counts_per_gene: 10
+  min_samples_per_gene: 3
+  
+  # Sample filtering
+  detect_outliers: true
+  outlier_method: "isolation_forest"  # Options: 'isolation_forest', 'pca', 'mahalanobis'
+  outlier_contamination: 0.05
+  
+  # Normalization
+  variance_stabilization: true  # VST for visualization
+  
+  # Batch correction
+  batch_correction: "ComBat"  # Options: 'ComBat', 'limma', 'RUVSeq', null
+  batch_column: "batch"  # Column name in metadata (if applicable)
+  
+  # Quality metrics
+  generate_qc_plots: true
+  qc_report_format: "html"  # Options: 'html', 'pdf'
+
+# Differential expression analysis
+differential_expression:
+  # Methods to use (can select multiple)
+  methods: ["deseq2", "edgeR", "limma"]
+  
+  # Statistical thresholds
+  fdr_threshold: 0.05  # False discovery rate
+  log2fc_threshold: 1.5  # Log2 fold change cutoff
+  pvalue_threshold: 0.05
+  
+  # Comparison groups
+  comparison: "Tumor vs Normal"
+  case_group: "tumor"
+  control_group: "normal"
+  group_column: "sample_type"
+  
+  # Consensus DEGs
+  consensus_min_methods: 2  # Minimum methods that must agree
+  
+  # Advanced options
+  independent_filtering: true
+  cooksCutoff: true
+  shrinkage: "apeglm"  # For DESeq2: 'normal', 'apeglm', 'ashr'
+
+# Survival analysis
+survival_analysis:
+  # Enable/disable
+  enabled: true
+  
+  # Survival columns in metadata
+  time_column: "overall_survival_days"
+  event_column: "deceased"
+  
+  # Stratification
+  stratification_method: "median"  # Options: 'median', 'quartile', 'optimal', 'custom'
+  custom_cutpoints: [0.33, 0.67]  # For custom stratification
+  
+  # Analysis options
+  top_genes_count: 50  # Number of top DEGs to analyze
+  min_group_size: 10  # Minimum patients per group
+  
+  # Multivariate analysis
+  include_clinical_variables: true
+  clinical_covariates: ["age", "stage", "grade"]
+  
+  # Time-dependent ROC
+  time_dependent_roc: true
+  roc_timepoints: [365, 730, 1095, 1825]  # Days (1, 2, 3, 5 years)
+
+# Functional enrichment analysis
+enrichment:
+  # Databases to query
+  databases: ["GO_BP", "GO_MF", "GO_CC", "KEGG", "REACTOME", "HALLMARK"]
+  
+  # Organism
+  organism: "Homo sapiens"
+  
+  # Statistical cutoffs
+  fdr_cutoff: 0.05
+  pvalue_cutoff: 0.05
+  
+  # Gene set enrichment analysis (GSEA)
+  gsea:
+    enabled: true
+    permutations: 1000
+    min_size: 15
+    max_size: 500
+    
+  # Gene list options
+  use_ranked_list: true  # Use all genes ranked by log2FC
+  separate_up_down: true  # Analyze up and down separately
+  
+  # Visualization
+  top_pathways: 20  # Number of pathways to visualize
+  pathway_network: true  # Generate pathway interaction network
+
+# Machine learning and risk stratification
+machine_learning:
+  # Enable/disable
+  enabled: true
+  
+  # Algorithms to use
+  algorithms: ["lasso", "random_forest", "svm", "xgboost"]
+  
+  # Feature selection
+  feature_selection: "lasso"  # Options: 'lasso', 'recursive', 'univariate', 'none'
+  max_features: 100
+  
+  # Cross-validation
+  cv_folds: 5
+  cv_repeats: 3
+  
+  # Train/test split
+  test_size: 0.2
+  validation_size: 0.2
+  
+  # Model parameters
+  lasso_alpha: [0.001, 0.01, 0.1, 1.0]  # Will select best via CV
+  random_forest_trees: 500
+  random_forest_max_depth: 10
+  
+  # Performance metrics
+  metrics: ["c_index", "auc", "accuracy", "f1_score"]
+  
+  # Hyperparameter tuning
+  hyperparameter_tuning: true
+  tuning_method: "grid_search"  # Options: 'grid_search', 'random_search', 'bayesian'
+  
+  # Random seed for reproducibility
+  random_seed: 42
+
+# Tumor microenvironment analysis
+tumor_microenvironment:
+  # Enable/disable
+  enabled: true
+  
+  # Deconvolution methods
+  methods: ["cibersort", "xcell", "timer"]
+  
+  # Cell types to estimate
+  cell_types: [
+    "B_cells", "T_cells_CD4", "T_cells_CD8",
+    "NK_cells", "Macrophages_M1", "Macrophages_M2",
+    "Dendritic_cells", "Neutrophils", "Eosinophils",
+    "Fibroblasts", "Endothelial_cells"
+  ]
+  
+  # Correlation with survival
+  test_survival_association: true
+
+# Spatial transcriptomics (if applicable)
+spatial_transcriptomics:
+  enabled: false
+  
+  # Data files
+  spatial_data_file: "data/spatial_coordinates.csv"
+  histology_image: "data/tissue_image.png"
+  
+  # Analysis
+  identify_spatial_domains: true
+  detect_spatial_degs: true
+  min_spatial_distance: 50  # micrometers
+
+# Visualization settings
+visualization:
+  # Output formats
+  export_formats: ["png", "pdf", "svg"]
+  dpi: 300
+  
+  # Interactive plots
+  interactive: true
+  interactive_tool: "plotly"  # Options: 'plotly', 'bokeh'
+  
+  # Color schemes
+  color_palettes:
+    heatmap: "RdBu"
+    volcano: ["blue", "grey", "red"]
+    survival: ["#E64B35", "#4DBBD5"]
+  
+  # Plot sizes
+  figure_width: 10
+  figure_height: 8
+  
+  # Heatmap settings
+  heatmap_top_genes: 50
+  heatmap_clustering_method: "ward"
+  heatmap_distance_metric: "euclidean"
+  
+  # PCA settings
+  pca_components: [1, 2, 3]  # Components to plot
+  
+  # Network settings
+  network_layout: "spring"  # Options: 'spring', 'circular', 'kamada_kawai'
+
+# Clinical report generation
+clinical_report:
+  # Enable/disable
+  enabled: true
+  
+  # Report format
+  format: "pdf"  # Options: 'pdf', 'html', 'docx'
+  
+  # Sections to include
+  include_sections:
+    - "executive_summary"
+    - "patient_cohort"
+    - "differential_expression"
+    - "pathway_analysis"
+    - "survival_analysis"
+    - "risk_stratification"
+    - "biomarker_recommendations"
+    - "limitations"
+    - "references"
+  
+  # Clinical interpretation
+  include_clinical_interpretation: true
+  include_treatment_implications: true
+  
+  # Literature references
+  include_pubmed_links: true
+
+# Computational resources
+computational:
+  # Parallel processing
+  n_cores: 8
+  max_memory_gb: 32
+  
+  # GPU acceleration (if available)
+  use_gpu: false
+  gpu_device: 0
+  
+  # Chunk size for large datasets
+  chunk_size: 1000
+
+# Output and logging
+output:
+  # Verbose output
+  verbose: true
+  log_level: "INFO"  # Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR'
+  
+  # Save intermediate results
+  save_intermediate: true
+  
+  # Compression
+  compress_results: false
+  compression_format: "gzip"
+  
+  # File naming
+  timestamp_files: true
+
+# Advanced options
+advanced:
+  # Reproducibility
+  set_seed: true
+  seed_value: 42
+  
+  # Error handling
+  continue_on_error: false
+  max_retries: 3
+  
+  # Caching
+  use_cache: true
+  cache_dir: "cache/"
+  
+  # Debugging
+  debug_mode: false
+  profile_performance: false
+
+# References and citations
+references:
+  cite_methods: true
+  reference_file: "references.bib"
+  citation_style: "apa"
+
+# Validation
+validation:
+  # External validation cohort
+  external_validation: false
+  validation_data_source: "GEO"
+  validation_series_id: "GSE12345"
+  
+  # Cross-dataset validation
+  cross_dataset_validation: false
+
+# Notification settings (optional)
+notifications:
+  enabled: false
+  email: "your.email@institution.edu"
+  notify_on_completion: true
+  notify_on_error: true
+
+# Version control
+pipeline_version: "1.0.0"
+config_version: "1.0"
+last_modified: "2025-12-01"
