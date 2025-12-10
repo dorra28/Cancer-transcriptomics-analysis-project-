@@ -1,0 +1,135 @@
+# Cancer Transcriptomics Analysis Pipeline - Docker Image
+# Provides a reproducible environment with all dependencies
+
+FROM ubuntu:22.04
+
+LABEL maintainer="dorra.rjaibi@pasteur.utm.tn"
+LABEL description="Cancer Transcriptomics Analysis Pipeline"
+LABEL version="1.0.0"
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Set working directory
+WORKDIR /workspace
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    # Build essentials
+    build-essential \
+    cmake \
+    git \
+    wget \
+    curl \
+    unzip \
+    # Python development
+    python3.10 \
+    python3.10-dev \
+    python3-pip \
+    # R and dependencies
+    r-base \
+    r-base-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libxml2-dev \
+    libgit2-dev \
+    libfontconfig1-dev \
+    libharfbuzz-dev \
+    libfribidi-dev \
+    libfreetype6-dev \
+    libpng-dev \
+    libtiff5-dev \
+    libjpeg-dev \
+    # Additional tools
+    htop \
+    vim \
+    less \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN pip3 install --upgrade pip setuptools wheel
+
+# Install Python packages
+COPY requirements.txt /tmp/requirements.txt
+RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
+
+# Install R packages
+RUN R -e "install.packages('BiocManager', repos='https://cloud.r-project.org')" && \
+    R -e "BiocManager::install(c( \
+        'DESeq2', \
+        'edgeR', \
+        'limma', \
+        'sva', \
+        'clusterProfiler', \
+        'org.Hs.eg.db', \
+        'DOSE', \
+        'enrichplot', \
+        'ReactomePA', \
+        'pathview', \
+        'TCGAbiolinks', \
+        'SummarizedExperiment', \
+        'ComplexHeatmap', \
+        'ggplot2', \
+        'pheatmap', \
+        'RColorBrewer', \
+        'dplyr', \
+        'tidyr', \
+        'survival', \
+        'survminer', \
+        'glmnet', \
+        'caret', \
+        'foreach', \
+        'doParallel' \
+    ), ask=FALSE)"
+
+# Install additional CRAN packages
+RUN R -e "install.packages(c( \
+    'data.table', \
+    'readr', \
+    'yaml', \
+    'optparse', \
+    'ggrepel', \
+    'cowplot', \
+    'patchwork', \
+    'VennDiagram', \
+    'UpSetR', \
+    'corrplot', \
+    'Rtsne', \
+    'umap' \
+), repos='https://cloud.r-project.org')"
+
+# Copy pipeline code
+COPY . /workspace/cancer-transcriptomics
+
+# Set Python path
+ENV PYTHONPATH="/workspace/cancer-transcriptomics:${PYTHONPATH}"
+
+# Create directories for data and results
+RUN mkdir -p /workspace/data /workspace/results
+
+# Set permissions
+RUN chmod -R 755 /workspace/cancer-transcriptomics
+
+# Default command
+CMD ["/bin/bash"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD python3 -c "import pandas; import numpy; import sklearn" || exit 1
+
+# Expose Jupyter port (optional)
+EXPOSE 8888
+
+# Volume mounts
+VOLUME ["/workspace/data", "/workspace/results"]
+
+# Environment variables
+ENV OMP_NUM_THREADS=4
+ENV OPENBLAS_NUM_THREADS=4
+ENV MKL_NUM_THREADS=4
+
+# Usage instructions
+# Build: docker build -t cancer-transcriptomics:latest .
+# Run: docker run -v $(pwd)/data:/workspace/data -v $(pwd)/results:/workspace/results -it cancer-transcriptomics:latest
+# Run with Jupyter: docker run -p 8888:8888 -v $(pwd):/workspace cancer-transcriptomics:latest jupyter lab --ip=0.0.0.0 --no-browser --allow-root
